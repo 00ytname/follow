@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram</title>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Instagram 계정의 팔로우 목록을 Firestore에 저장하는 함수
+        async function saveFollowers(username, followers) {
+            try {
+                await setDoc(doc(db, "users", username), { followers });
+                console.log(`${username} 팔로우 목록이 저장되었습니다.`);
+            } catch (error) {
+                console.error("오류 발생:", error);
+            }
+        }
+
+        // 예제 사용법
+        saveFollowers("my_instagram_account", ["user1", "user2", "user3"]);
+    </script>
+</head>
+<body>
+    <h1>Instagram 팔로우 비교</h1>
+    <button onclick="saveFollowers('my_instagram_account', ['user1', 'user2', 'user3'])">팔로우 저장</button>
+</body>
+</html>
