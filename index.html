@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram</title>
+    <title>Instagram 팔로우 비교</title>
     <script type="module">
-        // Import the functions you need from the SDKs you need
+        // Firebase SDK 가져오기
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
+        import { getFirestore, doc, setDoc, getDocs, updateDoc, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 
-        // Your web app's Firebase configuration
+        // Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
             authDomain: "grec-3e0e8.firebaseapp.com",
@@ -19,26 +18,104 @@
             messagingSenderId: "376090203842",
             appId: "1:376090203842:web:46c1d5320050bb08394d5b"
         };
+
         // Firebase 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Instagram 계정의 팔로우 목록을 Firestore에 저장하는 함수
-        async function saveFollowers(username, followers) {
+        // 계정 및 목록 관리 함수
+        async function addAccount(username, followers, grec) {
             try {
-                await setDoc(doc(db, "users", username), { followers });
-                console.log(`${username} 팔로우 목록이 저장되었습니다.`);
+                await setDoc(doc(db, "users", username), {
+                    followers: followers,
+                    grec: grec
+                });
+                console.log(`${username} 계정이 추가되었습니다.`);
+                loadAccounts(); // 계정 목록 새로 고침
             } catch (error) {
-                console.error("오류 발생:", error);
+                console.error("계정 추가 오류:", error);
             }
         }
 
-        // 예제 사용법
-        saveFollowers("my_instagram_account", ["user1", "user2", "user3"]);
+        async function deleteAccount(username) {
+            try {
+                await deleteDoc(doc(db, "users", username));
+                console.log(`${username} 계정이 삭제되었습니다.`);
+                loadAccounts(); // 계정 목록 새로 고침
+            } catch (error) {
+                console.error("계정 삭제 오류:", error);
+            }
+        }
+
+        async function updateAccount(username, newUsername, newFollowers, newGrec) {
+            try {
+                await updateDoc(doc(db, "users", username), {
+                    followers: newFollowers,
+                    grec: newGrec
+                });
+                console.log(`${username} 계정이 수정되었습니다.`);
+                loadAccounts(); // 계정 목록 새로 고침
+            } catch (error) {
+                console.error("계정 수정 오류:", error);
+            }
+        }
+
+        // 계정 목록 불러오기
+        async function loadAccounts() {
+            const usersCol = await getDocs(collection(db, "users"));
+            const accountsList = document.getElementById("accountsList");
+            accountsList.innerHTML = ""; // 기존 리스트 초기화
+
+            usersCol.forEach(doc => {
+                const account = doc.id;
+                const followers = doc.data().followers.join(", ");
+                const grec = doc.data().grec.join(", ");
+
+                const listItem = document.createElement("li");
+                listItem.innerHTML = `
+                    ${account} (팔로우: ${followers}, GREC: ${grec})
+                    <button onclick="editAccount('${account}')">수정</button>
+                    <button onclick="deleteAccount('${account}')">삭제</button>
+                `;
+                accountsList.appendChild(listItem);
+            });
+        }
+
+        // 계정 수정
+        function editAccount(account) {
+            const newUsername = prompt("새 계정 이름을 입력하세요:", account);
+            if (!newUsername) return;
+
+            const followers = prompt("팔로우 목록을 입력하세요 (쉼표로 구분):");
+            const grec = prompt("GREC 목록을 입력하세요 (쉼표로 구분):");
+
+            const followersArray = followers ? followers.split(",") : [];
+            const grecArray = grec ? grec.split(",") : [];
+
+            updateAccount(account, newUsername, followersArray, grecArray);
+        }
+
+        // 페이지 로딩 시 계정 목록 불러오기
+        window.onload = function() {
+            loadAccounts();
+        }
     </script>
 </head>
 <body>
     <h1>Instagram 팔로우 비교</h1>
-    <button onclick="saveFollowers('my_instagram_account', ['user1', 'user2', 'user3'])">팔로우 저장</button>
+    
+    <!-- 계정 추가 -->
+    <h2>계정 추가</h2>
+    <input type="text" id="newUsername" placeholder="계정 이름">
+    <input type="text" id="newFollowers" placeholder="팔로우 목록 (쉼표로 구분)">
+    <input type="text" id="newGrec" placeholder="GREC 목록 (쉼표로 구분)">
+    <button onclick="addAccount(
+        document.getElementById('newUsername').value, 
+        document.getElementById('newFollowers').value.split(','), 
+        document.getElementById('newGrec').value.split(',')
+    )">계정 추가</button>
+
+    <h2>계정 목록</h2>
+    <ul id="accountsList"></ul>
 </body>
 </html>
