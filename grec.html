@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GREC</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .highlight {
+            background-color: #fdd;
+        }
+
+        #accountsList {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        td.selected {
+            background-color: #fdd;
+        }
+
+        .account-header {
+            font-weight: bold;
+        }
+
+        td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        th:first-child, td:first-child {
+            width: 100px; /* 원하는 크기로 조절 */
+            min-width: 100px;
+            max-width: 100px;
+            white-space: nowrap; /* 줄 바꿈 방지 */
+        }
+
+    </style>
+</head>
+<body>
+    <nav>
+        <button onclick="location.href='manage.html'">메인</button>
+        <button onclick="location.href='list.html'">리스트</button>
+        <button onclick="location.href='follow.html'">중복(follow)</button>
+        <button onclick="location.href='grec.html'">중복(grec)</button>
+        <button onclick="location.href='search.html'">검색</button>
+        <button onclick="location.href='all.html'">전체</button>
+        <button onclick="location.href='memo.html'">메모</button>
+    </nav>
+
+    <h2>GREC 중복</h2>
+    
+    <div id="accountsList"></div>
+    
+    <button id="checkDuplicatesBtn">중복 체크</button>
+
+    <div id="comparisonTable"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let selectedAccounts = [];
+
+        async function loadAccounts() {
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const accountsList = document.getElementById("accountsList");
+            accountsList.innerHTML = '';
+
+            accountsSnapshot.forEach((doc) => {
+                const accountData = doc.data();
+                const accountId = doc.id;
+
+                const accountElement = document.createElement('div');
+                accountElement.innerHTML = `
+                    <input type="checkbox" class="account-checkbox" data-id="${accountId}" value="${accountData.accountName}">
+                    <label for="${accountId}">${accountData.accountName}</label>
+                `;
+                accountsList.appendChild(accountElement);
+            });
+        }
+
+        document.getElementById('accountsList').addEventListener('change', (e) => {
+            if (e.target.classList.contains('account-checkbox')) {
+                const accountName = e.target.value;
+                if (e.target.checked) {
+                    selectedAccounts.push(accountName);
+                } else {
+                    selectedAccounts = selectedAccounts.filter(name => name !== accountName);
+                }
+            }
+        });
+
+        async function renderComparisonTable() {
+            if (selectedAccounts.length === 0) {
+                alert("계정을 선택해주세요.");
+                return;
+            }
+
+            const tableContainer = document.getElementById('comparisonTable');
+            tableContainer.innerHTML = '';
+
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const accountsData = [];
+
+            accountsSnapshot.forEach((doc) => {
+                const accountData = doc.data();
+                if (selectedAccounts.includes(accountData.accountName)) {
+                    accountsData.push({ id: doc.id, data: accountData });
+                }
+            });
+
+            let tableHTML = '<table><thead><tr><th>전체</th>';
+
+            selectedAccounts.forEach(accountName => {
+                const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                const grecCount = accountData && accountData.data.grecList ? accountData.data.grecList.length : 0;
+                tableHTML += `<th>${accountName} (${grecCount})</th>`;
+            });
+            tableHTML += '</tr></thead><tbody>';
+
+            const allItems = getAllGrecItemsForComparison(accountsData);
+
+            allItems.forEach(item => {
+                tableHTML += `<tr><td>${item}</td>`;
+                selectedAccounts.forEach(accountName => {
+                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                    const listToCheck = accountData.data.grecList || [];
+
+                    const isSelected = listToCheck.includes(item);
+                    const isDuplicate = selectedAccounts.every(accountName => {
+                        const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                        return accountData.data.grecList?.includes(item);
+                    });
+
+                    tableHTML += `<td class="${isDuplicate ? 'highlight' : ''}">${isSelected ? item : ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        function getAllGrecItemsForComparison(accountsData) {
+            const allItems = new Set();
+            
+            accountsData.forEach(accountData => {
+                const listToCheck = accountData.data.grecList || [];
+                if (listToCheck.length > 0) {
+                    listToCheck.forEach(item => allItems.add(item));
+                }
+            });
+
+            return Array.from(allItems).sort();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAccounts();
+            document.getElementById("checkDuplicatesBtn").addEventListener('click', renderComparisonTable);
+        });
+    </script>
+</body>
+</html>

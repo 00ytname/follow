@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메모</title>
+    <script type="module">
+        // Firebase SDK 가져오기
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+    
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+    
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+    
+        // 메모 추가
+        async function addMemo() {
+            const memoText = document.getElementById("memoInput").value.trim();
+            if (!memoText) {
+                alert("메모를 입력하세요!");
+                return;
+            }
+    
+            try {
+                await addDoc(collection(db, "memos"), { text: memoText, timestamp: new Date() });
+                document.getElementById("memoInput").value = ""; // 입력창 초기화
+                loadMemos(); // 목록 새로고침
+            } catch (error) {
+                console.error("메모 추가 중 오류 발생:", error);
+            }
+        }
+    
+        // 메모 불러오기
+        async function loadMemos() {
+            const memoList = document.getElementById("memoList");
+            memoList.innerHTML = ""; // 기존 목록 초기화
+    
+            const querySnapshot = await getDocs(collection(db, "memos"));
+            querySnapshot.forEach((doc) => {
+                const memoData = doc.data();
+                const memoId = doc.id;
+    
+                // 타임스탬프 포맷팅 (YYYY-MM-DD HH:MM:SS)
+                const timestamp = memoData.timestamp.toDate();
+                const formattedTimestamp = timestamp.toLocaleString('ko-KR');
+    
+                const memoItem = document.createElement("div");
+                memoItem.classList.add("memo-item");
+                memoItem.innerHTML = `
+                    <p>${memoData.text}</p>
+                    <span>${formattedTimestamp}</span>
+                    <button onclick="deleteMemo('${memoId}')">삭제</button>
+                `;
+                memoList.appendChild(memoItem);
+            });
+        }
+    
+        // 메모 삭제
+        async function deleteMemo(memoId) {
+            try {
+                await deleteDoc(doc(db, "memos", memoId));
+                loadMemos(); // 목록 새로고침
+            } catch (error) {
+                console.error("메모 삭제 중 오류 발생:", error);
+            }
+        }
+    
+        // 전역에서 함수 접근 가능하도록 설정
+        window.addMemo = addMemo;
+        window.deleteMemo = deleteMemo;
+        
+        // 페이지 로드 시 메모 불러오기
+        document.addEventListener("DOMContentLoaded", loadMemos);
+    </script>
+    
+    <style>
+        textarea {
+            width: 60%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        .memo-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            width: 60%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .memo-item p {
+            margin: 0;
+            flex: 1;
+            text-align: left;
+        }
+        .memo-item span {
+            margin-left: 10px;
+            color: #888;
+        }
+        .memo-item button {
+            background-color: red;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <button onclick="location.href='manage.html'">메인</button>
+        <button onclick="location.href='list.html'">리스트</button>
+        <button onclick="location.href='follow.html'">중복(follow)</button>
+        <button onclick="location.href='grec.html'">중복(grec)</button>
+        <button onclick="location.href='search.html'">검색</button>
+        <button onclick="location.href='all.html'">전체</button>
+        <button onclick="location.href='memo.html'">메모</button>
+    </nav>
+
+    <h2>메모장</h2>
+    <textarea id="memoInput" placeholder="메모를 입력하세요..."></textarea><br>
+    <button onclick="addMemo()">저장</button>
+
+    <h3>메모 목록</h3>
+    <div id="memoList"></div>
+</body>
+</html>

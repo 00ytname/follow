@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram 계정 검색</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+
+        /* 선택된 셀 배경색 */
+        td.selected {
+            background-color: #fdd;
+        }
+
+        /* 선택된 계정 헤더 스타일 */
+        .account-header {
+            font-weight: bold;
+        }
+
+        /* 텍스트가 너무 길어지지 않게 제한 */
+        td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        th:first-child, td:first-child {
+            width: 100px; /* 원하는 크기로 조절 */
+            min-width: 100px;
+            max-width: 100px;
+            white-space: nowrap; /* 줄 바꿈 방지 */
+        }
+
+
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 바 -->
+    <nav>
+        <button onclick="location.href='manage.html'">메인</button>
+        <button onclick="location.href='list.html'">리스트</button>
+        <button onclick="location.href='follow.html'">중복(follow)</button>
+        <button onclick="location.href='grec.html'">중복(grec)</button>
+        <button onclick="location.href='search.html'">검색</button>
+        <button onclick="location.href='all.html'">전체</button>
+        <button onclick="location.href='memo.html'">메모</button>
+    </nav>
+    <h2>검색</h2>
+    
+    <!-- 검색할 계정 입력 -->
+    <div>
+        <label for="searchInput">검색할 계정:</label>
+        <input type="text" id="searchInput" placeholder="계정명을 입력하세요">
+        <button id="searchBtn">검색</button>
+    </div>
+
+    <!-- 검색 결과 표 -->
+    <div id="searchResults">
+        <!-- 결과는 여기에 표시됩니다 -->
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 검색 버튼 클릭 시 처리
+        document.getElementById("searchBtn").addEventListener("click", async function() {
+            const searchInput = document.getElementById("searchInput").value.trim();
+            if (searchInput === "") {
+                alert("검색할 계정명을 입력하세요.");
+                return;
+            }
+
+            const resultsContainer = document.getElementById("searchResults");
+            resultsContainer.innerHTML = ''; // 이전 결과 초기화
+
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const searchResults = [];
+
+            accountsSnapshot.forEach((doc) => {
+                const accountData = doc.data();
+                const accountName = accountData.accountName;
+
+                // 팔로우 목록과 GREC 목록에서 검색 계정이 포함되어 있는지 확인
+                const isFollowed = accountData.followList.includes(searchInput);
+                const isInGrec = accountData.grecList.includes(searchInput);
+
+                if (isFollowed || isInGrec) {
+                    searchResults.push({
+                        accountName: accountName,
+                        isFollowed: isFollowed,
+                        isInGrec: isInGrec
+                    });
+                }
+            });
+
+            if (searchResults.length === 0) {
+                resultsContainer.innerHTML = "<p>검색된 계정이 없습니다.</p>";
+            } else {
+                let tableHTML = '<table><thead><tr><th>계정명</th><th>팔로우 목록</th><th>GREC 목록</th></tr></thead><tbody>';
+
+                searchResults.forEach(result => {
+                    tableHTML += `
+                        <tr>
+                            <td>${result.accountName}</td>
+                            <td>${result.isFollowed ? 'O' : 'X'}</td>
+                            <td>${result.isInGrec ? 'O' : 'X'}</td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += '</tbody></table>';
+                resultsContainer.innerHTML = tableHTML;
+            }
+        });
+    </script>
+</body>
+</html>

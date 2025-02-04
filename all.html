@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전체</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let allAccountData = [];
+
+        async function loadAccountList() {
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const accountListDiv = document.getElementById("accountList");
+            accountListDiv.innerHTML = ""; 
+
+            allAccountData = [];
+
+            accountsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                allAccountData.push({
+                    id: doc.id,
+                    name: data.accountName,
+                    followList: data.followList || [],
+                    grecList: new Set(data.grecList || []) 
+                });
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = doc.id;
+                checkbox.className = "accountCheckbox";
+
+                const label = document.createElement("label");
+                label.textContent = data.accountName;
+
+                const container = document.createElement("div");
+                container.appendChild(checkbox);
+                container.appendChild(label);
+
+                accountListDiv.appendChild(container);
+            });
+        }
+
+        function loadSelectedAccounts() {
+            const selectedIds = Array.from(document.querySelectorAll(".accountCheckbox:checked")).map(cb => cb.value);
+            const selectedAccounts = allAccountData.filter(acc => selectedIds.includes(acc.id));
+
+            if (selectedAccounts.length === 0) {
+                alert("적어도 하나의 계정을 선택해주세요.");
+                return;
+            }
+
+            renderTable(selectedAccounts);
+        }
+
+        function renderTable(selectedAccounts) {
+            const table = document.getElementById("allTable");
+            table.innerHTML = ""; 
+
+            let allFollowSet = new Set();
+            selectedAccounts.forEach(acc => acc.followList.forEach(follow => allFollowSet.add(follow)));
+
+            const sortedFollowList = Array.from(allFollowSet).sort(); 
+
+            let headerRow = "<tr><th>전체</th>";
+            selectedAccounts.forEach(acc => {
+                headerRow += `<th>${acc.name}</th>`;
+            });
+            headerRow += "</tr>";
+            table.innerHTML += headerRow;
+
+            sortedFollowList.forEach(follow => {
+                let row = `<tr><td>${follow}</td>`;
+                selectedAccounts.forEach(acc => {
+                    let bgColor = acc.grecList.has(follow) ? 'style="background-color: lightcoral;"' : "";
+                    let displayText = acc.followList.includes(follow) ? follow : "";
+                    row += `<td ${bgColor}>${displayText}</td>`;
+                });
+                row += "</tr>";
+                table.innerHTML += row;
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadAccountList();
+            document.getElementById("runButton").addEventListener("click", loadSelectedAccounts);
+        });
+    </script>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #accountList div {
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        th:first-child, td:first-child {
+            width: 100px; /* 원하는 크기로 조절 */
+            min-width: 100px;
+            max-width: 100px;
+            white-space: nowrap; /* 줄 바꿈 방지 */
+        }
+        
+
+
+    </style>
+</head>
+<body>
+
+    <!-- 네비게이션 바 -->
+    <nav>
+        <button onclick="location.href='manage.html'">메인</button>
+        <button onclick="location.href='list.html'">리스트</button>
+        <button onclick="location.href='follow.html'">중복(follow)</button>
+        <button onclick="location.href='grec.html'">중복(grec)</button>
+        <button onclick="location.href='search.html'">검색</button>
+        <button onclick="location.href='all.html'">전체</button>
+        <button onclick="location.href='memo.html'">메모</button>
+    </nav>
+
+    <h2>전체 목록</h2>
+
+    <div>
+        <div id="accountList"></div>
+        <button id="runButton">실행</button>
+    </div>
+
+    <table id="allTable"></table>
+
+</body>
+</html>

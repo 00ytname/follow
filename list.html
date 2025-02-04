@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리스트</title>
+    <style>
+        /* 테이블 스타일 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 셀 너비 고정 */
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        /* 계정 선택 스타일 */
+        #accountsList {
+            display: flex;
+            flex-wrap: wrap;  /* 여러 줄로 표시되도록 함 */
+            gap: 15px;        /* 계정 간 간격 */
+            margin-bottom: 20px;
+        }
+
+        /* 선택된 셀 배경색 */
+        td.selected {
+            background-color: #fdd;
+        }
+
+        /* 선택된 계정 헤더 스타일 */
+        .account-header {
+            font-weight: bold;
+        }
+
+        /* 텍스트가 너무 길어지지 않게 제한 */
+        td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        th:first-child, td:first-child {
+            width: 100px; /* 원하는 크기로 조절 */
+            min-width: 100px;
+            max-width: 100px;
+            white-space: nowrap; /* 줄 바꿈 방지 */
+        }
+
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 바 -->
+    <nav>
+        <button onclick="location.href='manage.html'">메인</button>
+        <button onclick="location.href='list.html'">리스트</button>
+        <button onclick="location.href='follow.html'">중복(follow)</button>
+        <button onclick="location.href='grec.html'">중복(grec)</button>
+        <button onclick="location.href='search.html'">검색</button>
+        <button onclick="location.href='all.html'">전체</button>
+        <button onclick="location.href='memo.html'">메모</button>
+    </nav>
+
+    <h2>리스트</h2>
+
+    <!-- 계정 선택 -->
+    <div id="accountsList"></div> <!-- 계정 목록을 불러올 영역 -->
+
+    <!-- 팔로우 또는 GREC 선택 -->
+    <button id="followButton">Follow</button>
+    <button id="grecButton">GREC</button>
+
+    <div id="comparisonTable">
+        <!-- 선택한 계정들의 비교 결과를 이곳에 표시 -->
+    </div>
+
+    <script type="module">
+        // Firebase SDK 설정
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfuRIQ91UNo_A1aHiTvfsZf5t-4hTP5qE",
+            authDomain: "grec-3e0e8.firebaseapp.com",
+            projectId: "grec-3e0e8",
+            storageBucket: "grec-3e0e8.firebasestorage.app",
+            messagingSenderId: "376090203842",
+            appId: "1:376090203842:web:46c1d5320050bb08394d5b"
+        };
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let selectedAccounts = [];
+        let selectedListType = ''; // "follow" 또는 "grec" 선택
+
+        // 계정 목록 불러오기
+        async function loadAccounts() {
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const accountsList = document.getElementById("accountsList");
+            accountsList.innerHTML = ''; // 기존 목록 초기화
+
+            accountsSnapshot.forEach((doc) => {
+                const accountData = doc.data();
+                const accountId = doc.id;
+
+                // 계정 항목 만들기
+                const accountElement = document.createElement('div');
+                accountElement.classList.add('account-item');
+                accountElement.innerHTML = `
+                    <input type="checkbox" class="account-checkbox" data-id="${accountId}" value="${accountData.accountName}">
+                    <label for="${accountId}">${accountData.accountName}</label>
+                `;
+                accountsList.appendChild(accountElement);
+            });
+        }
+
+        // 계정 선택 처리
+        document.getElementById('accountsList').addEventListener('change', (e) => {
+            if (e.target.classList.contains('account-checkbox')) {
+                const accountName = e.target.value;
+                if (e.target.checked) {
+                    selectedAccounts.push(accountName);
+                } else {
+                    selectedAccounts = selectedAccounts.filter(name => name !== accountName);
+                }
+            }
+        });
+
+        // 팔로우 또는 GREC 목록 선택
+        function selectListType(type) {
+            selectedListType = type;
+            renderComparisonTable();
+        }
+
+        // 계정 세부 정보 표시
+        async function renderComparisonTable() {
+            if (selectedAccounts.length === 0 || selectedListType === '') return;
+
+            const tableContainer = document.getElementById('comparisonTable');
+            tableContainer.innerHTML = ''; // 기존 테이블 초기화
+
+            // 선택된 계정들의 데이터 가져오기
+            const accountsSnapshot = await getDocs(collection(db, "accounts"));
+            const accountsData = [];
+
+            accountsSnapshot.forEach((doc) => {
+                const accountData = doc.data();
+                if (selectedAccounts.includes(accountData.accountName)) {
+                    accountsData.push({ id: doc.id, data: accountData });
+                }
+            });
+
+            // 표 생성
+            let tableHTML = '<table><thead><tr><th>전체</th>';
+
+                // 계정 열 추가 (갯수 추가)
+                selectedAccounts.forEach(accountName => {
+                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                    const listToCheck = selectedListType === 'follow' ? accountData.data.followList : accountData.data.grecList;
+                    tableHTML += `<th>${accountName} (${listToCheck.length})</th>`; // 갯수 추가
+                });
+                
+                tableHTML += '</tr></thead><tbody>';
+                
+
+            // 선택한 목록에 맞는 항목들 나열
+            const allItems = getAllItemsForComparison(accountsData);
+
+            allItems.forEach(item => {
+                tableHTML += `<tr><td>${item}</td>`;
+                selectedAccounts.forEach(accountName => {
+                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                    const listToCheck = selectedListType === 'follow' ? accountData.data.followList : accountData.data.grecList;
+                    tableHTML += `<td>${listToCheck.includes(item) ? item : ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        // 팔로우 또는 GREC 목록의 항목들 가져오기
+        function getAllItemsForComparison(accountsData) {
+            const allItems = new Set();
+            accountsData.forEach(accountData => {
+                const listToCheck = selectedListType === 'follow' ? accountData.data.followList : accountData.data.grecList;
+                listToCheck.forEach(item => allItems.add(item));
+            });
+            return Array.from(allItems).sort();
+        }
+
+        // 페이지 로드 시 계정 목록 불러오기
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAccounts();
+
+            // 버튼 클릭 시 목록 타입 선택
+            document.getElementById('followButton').addEventListener('click', () => selectListType('follow'));
+            document.getElementById('grecButton').addEventListener('click', () => selectListType('grec'));
+        });
+    </script>
+</body>
+</html>
