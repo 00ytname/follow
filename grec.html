@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GREC</title>
+    <title>팔로우</title>
     <style>
         table {
             width: 100%;
@@ -22,27 +22,30 @@
             background-color: #fdd;
         }
 
+        /* 계정 선택 스타일 */
         #accountsList {
             display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
+            flex-wrap: wrap;  /* 여러 줄로 표시되도록 함 */
+            gap: 15px;        /* 계정 간 간격 */
             margin-bottom: 20px;
         }
 
+        /* 선택된 셀 배경색 */
         td.selected {
             background-color: #fdd;
         }
 
+        /* 선택된 계정 헤더 스타일 */
         .account-header {
             font-weight: bold;
         }
 
+        /* 텍스트가 너무 길어지지 않게 제한 */
         td {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
         th:first-child, td:first-child {
             width: 100px; /* 원하는 크기로 조절 */
             min-width: 100px;
@@ -53,6 +56,7 @@
     </style>
 </head>
 <body>
+    <!-- 네비게이션 바 -->
     <nav>
         <button onclick="location.href='manage.html'">메인</button>
         <button onclick="location.href='list.html'">리스트</button>
@@ -63,8 +67,9 @@
         <button onclick="location.href='memo.html'">메모</button>
     </nav>
 
-    <h2>GREC 중복</h2>
+    <h2>팔로우 중복</h2>
     
+    <!-- 계정 선택 -->
     <div id="accountsList"></div>
     
     <button id="checkDuplicatesBtn">중복 체크</button>
@@ -89,17 +94,19 @@
 
         let selectedAccounts = [];
 
+        // 계정 목록 불러오기
         async function loadAccounts() {
             const accountsSnapshot = await getDocs(collection(db, "accounts"));
             const accountsList = document.getElementById("accountsList");
-            accountsList.innerHTML = '';
+            accountsList.innerHTML = ''; // 기존 목록 초기화
 
             accountsSnapshot.forEach((doc) => {
                 const accountData = doc.data();
                 const accountId = doc.id;
 
+                // 계정 항목 만들기
                 const accountElement = document.createElement('div');
-                accountElement.innerHTML = `
+                accountElement.innerHTML = `  
                     <input type="checkbox" class="account-checkbox" data-id="${accountId}" value="${accountData.accountName}">
                     <label for="${accountId}">${accountData.accountName}</label>
                 `;
@@ -107,17 +114,21 @@
             });
         }
 
+        // 계정 선택 처리
         document.getElementById('accountsList').addEventListener('change', (e) => {
             if (e.target.classList.contains('account-checkbox')) {
                 const accountName = e.target.value;
                 if (e.target.checked) {
-                    selectedAccounts.push(accountName);
+                    if (!selectedAccounts.includes(accountName)) {
+                        selectedAccounts.push(accountName);
+                    }
                 } else {
                     selectedAccounts = selectedAccounts.filter(name => name !== accountName);
                 }
             }
         });
 
+        // 중복 체크 버튼을 눌렀을 때 팔로우 목록 중복 확인
         async function renderComparisonTable() {
             if (selectedAccounts.length === 0) {
                 alert("계정을 선택해주세요.");
@@ -125,7 +136,7 @@
             }
 
             const tableContainer = document.getElementById('comparisonTable');
-            tableContainer.innerHTML = '';
+            tableContainer.innerHTML = ''; // 기존 테이블 초기화
 
             const accountsSnapshot = await getDocs(collection(db, "accounts"));
             const accountsData = [];
@@ -137,31 +148,47 @@
                 }
             });
 
+            // 표 생성
             let tableHTML = '<table><thead><tr><th>전체</th>';
-
+            
             selectedAccounts.forEach(accountName => {
                 const accountData = accountsData.find(acc => acc.data.accountName === accountName);
-                const grecCount = accountData && accountData.data.grecList ? accountData.data.grecList.length : 0;
+                const grecCount = accountData ? accountData.data.grecList.length : 0;
                 tableHTML += `<th>${accountName} (${grecCount})</th>`;
             });
             tableHTML += '</tr></thead><tbody>';
 
-            const allItems = getAllGrecItemsForComparison(accountsData);
+            // 팔로우 목록을 가져와서 중복 항목들만 체크
+            const allItems = getAllFollowItemsForComparison(accountsData);
 
             allItems.forEach(item => {
                 tableHTML += `<tr><td>${item}</td>`;
+
+                let duplicateCount = 0;
+
                 selectedAccounts.forEach(accountName => {
                     const accountData = accountsData.find(acc => acc.data.accountName === accountName);
-                    const listToCheck = accountData.data.grecList || [];
+                    const listToCheck = accountData.data.grecList;
+
+                    if (listToCheck.includes(item)) {
+                        duplicateCount++; 
+                    }
+                });
+
+                selectedAccounts.forEach(accountName => {
+                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                    const listToCheck = accountData.data.grecList;
 
                     const isSelected = listToCheck.includes(item);
-                    const isDuplicate = selectedAccounts.every(accountName => {
-                        const accountData = accountsData.find(acc => acc.data.accountName === accountName);
-                        return accountData.data.grecList?.includes(item);
-                    });
+                    const isDuplicate = duplicateCount >= 2;
 
-                    tableHTML += `<td class="${isDuplicate ? 'highlight' : ''}">${isSelected ? item : ''}</td>`;
+                    // 값이 있을 때만 중복 처리
+                    const cellContent = isSelected ? item : '';
+                    const highlightClass = (isSelected && isDuplicate) ? 'highlight' : '';
+
+                    tableHTML += `<td class="${highlightClass}">${cellContent}</td>`;
                 });
+
                 tableHTML += '</tr>';
             });
 
@@ -169,19 +196,16 @@
             tableContainer.innerHTML = tableHTML;
         }
 
-        function getAllGrecItemsForComparison(accountsData) {
+        // 팔로우 목록 항목들 가져오기
+        function getAllFollowItemsForComparison(accountsData) {
             const allItems = new Set();
-            
             accountsData.forEach(accountData => {
-                const listToCheck = accountData.data.grecList || [];
-                if (listToCheck.length > 0) {
-                    listToCheck.forEach(item => allItems.add(item));
-                }
+                accountData.data.grecList.forEach(item => allItems.add(item));
             });
-
             return Array.from(allItems).sort();
         }
 
+        // 페이지 로드 시 계정 목록 불러오기
         document.addEventListener('DOMContentLoaded', function() {
             loadAccounts();
             document.getElementById("checkDuplicatesBtn").addEventListener('click', renderComparisonTable);
