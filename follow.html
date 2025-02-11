@@ -70,9 +70,7 @@
     <h2>팔로우 중복</h2>
     
     <!-- 계정 선택 -->
-    <div id="accountsList">
-        <!-- 계정 목록을 여기서 불러옵니다 -->
-    </div>
+    <div id="accountsList"></div>
     
     <button id="checkDuplicatesBtn">중복 체크</button>
 
@@ -121,7 +119,6 @@
             if (e.target.classList.contains('account-checkbox')) {
                 const accountName = e.target.value;
                 if (e.target.checked) {
-                    // 중복된 계정이 추가되지 않도록 설정
                     if (!selectedAccounts.includes(accountName)) {
                         selectedAccounts.push(accountName);
                     }
@@ -153,31 +150,45 @@
 
             // 표 생성
             let tableHTML = '<table><thead><tr><th>전체</th>';
-                
-                selectedAccounts.forEach(accountName => {
-                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
-                    const followCount = accountData ? accountData.data.followList.length : 0;
-                    tableHTML += `<th>${accountName} (${followCount})</th>`;
-                });
-                tableHTML += '</tr></thead><tbody>';
+            
+            selectedAccounts.forEach(accountName => {
+                const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                const followCount = accountData ? accountData.data.followList.length : 0;
+                tableHTML += `<th>${accountName} (${followCount})</th>`;
+            });
+            tableHTML += '</tr></thead><tbody>';
 
             // 팔로우 목록을 가져와서 중복 항목들만 체크
             const allItems = getAllFollowItemsForComparison(accountsData);
 
             allItems.forEach(item => {
                 tableHTML += `<tr><td>${item}</td>`;
+
+                let duplicateCount = 0;
+
+                selectedAccounts.forEach(accountName => {
+                    const accountData = accountsData.find(acc => acc.data.accountName === accountName);
+                    const listToCheck = accountData.data.followList;
+
+                    if (listToCheck.includes(item)) {
+                        duplicateCount++; 
+                    }
+                });
+
                 selectedAccounts.forEach(accountName => {
                     const accountData = accountsData.find(acc => acc.data.accountName === accountName);
                     const listToCheck = accountData.data.followList;
 
                     const isSelected = listToCheck.includes(item);
-                    const isDuplicate = selectedAccounts.every(accountName => {
-                        const accountData = accountsData.find(acc => acc.data.accountName === accountName);
-                        return accountData.data.followList.includes(item);
-                    });
+                    const isDuplicate = duplicateCount >= 2;
 
-                    tableHTML += `<td class="${isDuplicate ? 'highlight' : ''}">${isSelected ? item : ''}</td>`;
+                    // 값이 있을 때만 중복 처리
+                    const cellContent = isSelected ? item : '';
+                    const highlightClass = (isSelected && isDuplicate) ? 'highlight' : '';
+
+                    tableHTML += `<td class="${highlightClass}">${cellContent}</td>`;
                 });
+
                 tableHTML += '</tr>';
             });
 
@@ -189,8 +200,7 @@
         function getAllFollowItemsForComparison(accountsData) {
             const allItems = new Set();
             accountsData.forEach(accountData => {
-                const listToCheck = accountData.data.followList;
-                listToCheck.forEach(item => allItems.add(item));
+                accountData.data.followList.forEach(item => allItems.add(item));
             });
             return Array.from(allItems).sort();
         }
